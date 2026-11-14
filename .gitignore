@@ -1,0 +1,31 @@
+# Segreti: chiavi API, token del bot, chiave del portafoglio
+.env
+*.env
+*.key
+wallet*.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+nina-env/
+
+# Dati reali della nonna: restano solo sul Raspberry
+ricordi.yaml
+dati/
+registro/
+*.db
+*.sqlite
+*.sqlite3
+
+# Audio (registrazioni di prova e canzoni)
+*.wav
+*.mp3
+*.ogg
+musica/
+
+# Editor e sistema
+.vscode/
+.idea/
+.DS_Store
