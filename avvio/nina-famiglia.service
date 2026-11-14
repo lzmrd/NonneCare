@@ -1,0 +1,14 @@
+[Unit]
+Description=La Radio di Nina: bot Telegram della famiglia
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=revsurfer
+WorkingDirectory=/home/revsurfer/nina
+ExecStart=/home/revsurfer/nina-env/bin/python -u famiglia.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

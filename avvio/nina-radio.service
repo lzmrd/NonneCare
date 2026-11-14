@@ -1,0 +1,15 @@
+[Unit]
+Description=La Radio di Nina: ascolto, Claude e voce
+Wants=network-online.target sound.target
+After=network-online.target sound.target alsa-restore.service
+
+[Service]
+User=revsurfer
+Group=audio
+WorkingDirectory=/home/revsurfer/nina
+ExecStart=/home/revsurfer/nina-env/bin/python -u main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

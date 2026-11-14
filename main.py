@@ -5,6 +5,7 @@
     python main.py --testo    prova del cervello: scrivi e leggi, senza audio
 """
 import argparse
+import os
 import subprocess
 import sys
 import time
@@ -64,6 +65,11 @@ def modo_radio(eco: bool) -> None:
     from voce import parla, trascrivi
     nina = None if eco else __import__("nina").Nina()
     print("Nina ascolta… (Ctrl+C per uscire)")
+    if os.environ.get("NINA_ANNUNCIA_AVVIO") == "1":  # utile senza schermo: si sente quando è pronta
+        try:
+            parla("Sono Nina, sono accesa.")
+        except Exception as errore:
+            print(f"⚠️  saluto di avvio non riuscito: {errore}")
     while True:
         if bacheca.in_pausa():
             time.sleep(5)
