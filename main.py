@@ -14,15 +14,22 @@ import bacheca
 import pillola
 import registro
 import strumenti
-from config import ALTOPARLANTE, DATI, NOME_NONNA
+from config import DATI, NOME_NONNA
 
 
 def suona_canzone() -> None:
+    from voce import lettore_audio
     canzoni = sorted((DATI / "musica").glob("*.mp3"))
     if canzoni:
         canzone = canzoni[int(time.time()) % len(canzoni)]
         registro.annota("canzone", file=canzone.name)
-        subprocess.run(["mpg123", "-q", "-o", "alsa", "-a", ALTOPARLANTE, str(canzone)])
+        # mpg123 decodifica, aplay suona con le stesse opzioni della voce
+        decodifica = subprocess.Popen(["mpg123", "-q", "-s", "-m", "-r", "44100", "-e", "s16", str(canzone)],
+                                      stdout=subprocess.PIPE)
+        lettore = subprocess.Popen(lettore_audio(44100), stdin=decodifica.stdout)
+        decodifica.stdout.close()  # se aplay si chiude, mpg123 si ferma invece di restare appeso
+        lettore.wait()
+        decodifica.wait()
 
 
 def esegui_azioni() -> None:

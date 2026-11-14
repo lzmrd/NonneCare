@@ -3,6 +3,7 @@
 Ogni valore si può cambiare nel .env senza toccare il codice.
 """
 import os
+import shlex
 from pathlib import Path
 
 CARTELLA = Path(__file__).resolve().parent
@@ -43,6 +44,9 @@ VELOCITA_VOCE = float(_leggi("NINA_VELOCITA_VOCE", "0.9"))
 # Audio: sul Raspberry la webcam si chiama "Camera" e l'uscita è il jack "Headphones"
 MICROFONO = _leggi("NINA_MICROFONO", "plughw:CARD=Camera,DEV=0")
 ALTOPARLANTE = _leggi("NINA_ALTOPARLANTE", "plughw:CARD=Headphones,DEV=0")
+# Opzioni in più per aplay. Per una cassa Bluetooth: "-B 2000000 -R 500000"
+# (2 secondi di riserva contro i salti, comincia a suonare dopo mezzo secondo)
+OPZIONI_APLAY = shlex.split(_leggi("NINA_OPZIONI_APLAY"))
 VAD_AGGRESSIVITA = int(_leggi("NINA_VAD", "2"))  # 0 = sente tutto, 3 = solo voce chiara
 MARGINE_DB = float(_leggi("NINA_MARGINE_DB", "6"))  # quanto la voce deve superare il rumore di fondo
 DEBUG_AUDIO = _leggi("NINA_DEBUG_AUDIO") == "1"

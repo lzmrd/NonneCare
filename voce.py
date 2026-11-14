@@ -5,7 +5,7 @@ from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
 
 from config import (ALTOPARLANTE, DATI, ELEVENLABS_API_KEY, MODELLO_TRASCRIZIONE, MODELLO_VOCE,
-                    NOME_NONNA, VELOCITA_VOCE, VOCE_ID)
+                    NOME_NONNA, OPZIONI_APLAY, VELOCITA_VOCE, VOCE_ID)
 
 FREQUENZA_VOCE = 22050
 _client = None
@@ -52,11 +52,14 @@ def _sintetizza(testo: str):
     return audio
 
 
+def lettore_audio(frequenza: int) -> list[str]:
+    """aplay che suona audio grezzo mono da stdin, con le opzioni del .env (per esempio per il Bluetooth)."""
+    return ["aplay", "-q", "-D", ALTOPARLANTE, *OPZIONI_APLAY,
+            "-f", "S16_LE", "-r", str(frequenza), "-c", "1", "-t", "raw"]
+
+
 def _suona(pezzi) -> None:
-    lettore = subprocess.Popen(
-        ["aplay", "-q", "-D", ALTOPARLANTE, "-f", "S16_LE", "-r", str(FREQUENZA_VOCE), "-c", "1", "-t", "raw"],
-        stdin=subprocess.PIPE,
-    )
+    lettore = subprocess.Popen(lettore_audio(FREQUENZA_VOCE), stdin=subprocess.PIPE)
     try:
         for pezzo in pezzi:
             if pezzo:
