@@ -49,14 +49,23 @@ class Nina:
         self.sistema = _prompt()  # rilegge i ricordi, se la famiglia ne ha aggiunti
 
     def rispondi(self, detto: str) -> str:
-        if time.monotonic() - self.ultimo_scambio > PAUSA_NUOVA_CONVERSAZIONE_S:
-            self._nuova_conversazione()
-        self.ultimo_scambio = time.monotonic()
+        """Risponde a quello che ha detto la nonna."""
         registro.annota("nonna", testo=detto)
         contesto = "".join(f"(Poco fa la radio le ha letto questo messaggio della famiglia: \"{t}\") "
                            for quando, t in self.annunci_recenti if time.monotonic() - quando < 30 * 60)
         self.annunci_recenti.clear()
-        self.messaggi.append({"role": "user", "content": f"[{_momento()}] {contesto}{detto}"})
+        return self._turno(f"[{_momento()}] {contesto}{detto}")
+
+    def parla_per_prima(self, indicazione: str) -> str:
+        """Nina inizia a parlare (per esempio per la pillola): l'indicazione non sono parole della nonna."""
+        registro.annota("indicazione", testo=indicazione)
+        return self._turno(f"[{_momento()}] (Indicazione per Nina, lei non ha parlato: {indicazione})")
+
+    def _turno(self, contenuto: str) -> str:
+        if time.monotonic() - self.ultimo_scambio > PAUSA_NUOVA_CONVERSAZIONE_S:
+            self._nuova_conversazione()
+        self.ultimo_scambio = time.monotonic()
+        self.messaggi.append({"role": "user", "content": contenuto})
 
         risposta = None
         for _ in range(GIRI_MASSIMI):

@@ -4,6 +4,7 @@ from datetime import datetime
 
 import registro
 import avvisi
+import pillola
 from config import DATI, NOME_NONNA
 
 # Azioni da fare dopo che Nina ha finito di parlare (per ora: la canzone)
@@ -41,6 +42,22 @@ DEFINIZIONI = [
         },
     },
     {
+        "name": "segna_pillola",
+        "description": (
+            "Dopo un promemoria della pillola, annota cosa ha risposto lei. È quello che ha DETTO: "
+            "la radio non può vedere se l'ha presa davvero."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "esito": {"type": "string", "enum": list(pillola.ESITI),
+                          "description": "ha_detto_di_averla_presa, rifiutata, oppure dice_di_averla_gia_presa."},
+            },
+            "required": ["esito"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "metti_canzone",
         "description": "Fa partire la sua canzone preferita appena hai finito di parlare. Usalo solo se lei è d'accordo.",
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -72,7 +89,12 @@ def metti_canzone() -> str:
     return "La canzone partirà appena hai finito di parlare."
 
 
+def segna_pillola(esito: str) -> str:
+    return pillola.segna(esito)
+
+
 _FUNZIONI = {
+    "segna_pillola": segna_pillola,
     "avvisa_famiglia": avvisa_famiglia,
     "messaggio_per_la_famiglia": messaggio_per_la_famiglia,
     "metti_canzone": metti_canzone,

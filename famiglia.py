@@ -16,6 +16,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 
 import avvisi
 import bacheca
+import pillola
 import registro
 import sigillo
 from config import CARTELLA, DATI, MODELLO, NOME_NONNA, TELEGRAM_TOKEN
@@ -76,6 +77,27 @@ DEFINIZIONI = [
                 "nota": {"type": "string", "description": "Cosa farà, in breve."},
             },
             "required": ["chi", "nota"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "imposta_pillola",
+        "description": "Imposta gli orari in cui Nina ricorda la pillola alla nonna (sostituisce quelli di prima).",
+        "input_schema": {
+            "type": "object",
+            "properties": {"orari": {"type": "array", "items": {"type": "string"},
+                                     "description": "Orari nel formato HH:MM, per esempio [\"09:00\", \"20:00\"]."}},
+            "required": ["orari"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "aggiungi_strategia_pillola",
+        "description": "Aggiunge un modo gentile e vero per convincerla a prendere la pillola, che Nina userà a rotazione.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"strategia": {"type": "string", "description": "La strategia in una frase."}},
+            "required": ["strategia"],
             "additionalProperties": False,
         },
     },
@@ -141,6 +163,18 @@ def segna_avviso_gestito(chi: str, nota: str) -> str:
     return f"Annotato nel registro e comunicato a {partiti} familiari."
 
 
+def imposta_pillola(orari: list[str]) -> str:
+    validi = pillola.imposta_orari(orari)
+    registro.annota("pillola_orari", orari=validi)
+    return f"Orari della pillola: {', '.join(validi) or 'nessuno'}."
+
+
+def aggiungi_strategia_pillola(strategia: str) -> str:
+    pillola.aggiungi_strategia(strategia)
+    registro.annota("pillola_strategia", testo=strategia)
+    return f"Strategia salvata. Ora sono {len(pillola.configurazione()['strategie'])}."
+
+
 def pausa_ascolto(minuti: int) -> str:
     minuti = max(0, min(240, minuti))
     bacheca.metti_in_pausa(minuti)
@@ -150,7 +184,8 @@ def pausa_ascolto(minuti: int) -> str:
 
 
 _FUNZIONI = {f.__name__: f for f in (di_alla_nonna, aggiungi_ricordo, leggi_registro, verifica_registro,
-                                     segna_avviso_gestito, pausa_ascolto)}
+                                     segna_avviso_gestito, imposta_pillola, aggiungi_strategia_pillola,
+                                     pausa_ascolto)}
 
 
 # --- Agente ----------------------------------------------------------------------------------
@@ -218,7 +253,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"Ciao! Sono il collegamento con la radio di {NOME_NONNA}. Scrivimi un messaggio da farle sentire, "
             "un ricordo da insegnare a Nina, o chiedimi com'è andata la notte.\n"
             "/resoconto: com'è andata la notte\n/verifica: controlla registro e sigillo sulla blockchain\n"
-            "/sigilla: sigilla adesso il registro su Avalanche")
+            "/sigilla: sigilla adesso il registro su Avalanche\n/pillola: Nina le ricorda la pillola adesso")
 
 
 async def messaggio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -264,6 +299,13 @@ def _sigilla_e_racconta() -> str:
         return f"Sigillo non riuscito: {errore}"
 
 
+async def pillola_adesso(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if await _solo_famiglia(update):
+        pillola.SUBITO.parent.mkdir(exist_ok=True)
+        pillola.SUBITO.touch()
+        await update.message.reply_text("💊 Nina le ricorderà la pillola tra pochi secondi.")
+
+
 async def _resoconto_del_mattino(app: Application) -> None:
     while True:
         adesso = datetime.now()
@@ -295,6 +337,7 @@ def main() -> None:
     app.add_handler(CommandHandler("resoconto", resoconto))
     app.add_handler(CommandHandler("verifica", verifica))
     app.add_handler(CommandHandler("sigilla", sigilla))
+    app.add_handler(CommandHandler("pillola", pillola_adesso))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, messaggio))
     print("Bot della famiglia attivo (Ctrl+C per uscire)")
     app.run_polling()

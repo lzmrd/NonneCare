@@ -10,6 +10,7 @@ import sys
 import time
 
 import bacheca
+import pillola
 import registro
 import strumenti
 from config import ALTOPARLANTE, DATI, NOME_NONNA
@@ -46,9 +47,13 @@ def leggi_annunci(nina, parla) -> None:
 def modo_testo() -> None:
     from nina import Nina
     nina = Nina()
-    print("Scrivi come se fossi la nonna (Ctrl+D per uscire).")
+    print("Scrivi come se fossi la nonna (/pillola per il promemoria, Ctrl+D per uscire).")
     for riga in sys.stdin:
-        if riga.strip():
+        if riga.strip() == "/pillola":
+            pillola.SUBITO.parent.mkdir(exist_ok=True)
+            pillola.SUBITO.touch()
+            print(f"💊 {nina.parla_per_prima(pillola.direttiva(pillola.da_fare()))}")
+        elif riga.strip():
             inizio = time.monotonic()
             print(f"📻 {nina.rispondi(riga.strip())}   ({time.monotonic() - inizio:.1f}s)")
             strumenti.azioni_in_sospeso.clear()
@@ -65,6 +70,15 @@ def modo_radio(eco: bool) -> None:
             continue
         if not eco:
             leggi_annunci(nina, parla)
+            promemoria = pillola.da_fare()
+            if promemoria:
+                try:
+                    testo = nina.parla_per_prima(pillola.direttiva(promemoria))
+                    print(f"💊 {testo}")
+                    parla(testo)
+                    esegui_azioni()
+                except Exception as errore:
+                    print(f"⚠️  promemoria non letto: {errore}")
         pcm = ascolta_frase(timeout=5)  # ogni 5 secondi di silenzio controlla gli annunci
         if pcm is None:
             continue
