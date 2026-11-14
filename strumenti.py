@@ -1,6 +1,6 @@
 """Gli strumenti che Nina può usare mentre parla con la nonna."""
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import registro
 import avvisi
@@ -9,6 +9,13 @@ from config import DATI, NOME_NONNA
 
 # Azioni da fare dopo che Nina ha finito di parlare (per ora: la canzone)
 azioni_in_sospeso: list[str] = []
+
+# Domande di controllo ai figli: mai di notte (dormono) e una sola per argomento ogni due ore,
+# così se lei ripete la stessa cosa dieci volte i figli ricevono un messaggio solo.
+CONFERME = DATI / "conferme_famiglia.json"
+ARGOMENTI_CONFERMA = ("pasto", "visita", "appuntamento", "altro")
+PAUSA_CONFERME = timedelta(hours=2)
+NOTTE_DALLE, NOTTE_ALLE = 22, 7
 
 DEFINIZIONI = [
     {
@@ -23,6 +30,26 @@ DEFINIZIONI = [
                 "motivo": {"type": "string", "description": "Cosa sta succedendo, in una frase, per i figli."},
             },
             "required": ["motivo"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "chiedi_conferma_famiglia",
+        "description": (
+            "Chiede ai figli su Telegram se è vero qualcosa che lei crede e tu non puoi sapere: deve preparare "
+            "da mangiare per qualcuno, aspetta una visita, deve andare a un appuntamento. Non è urgente: per i "
+            "rischi c'è avvisa_famiglia. Non usarlo per le persone care che non ci sono più. Di notte e se la "
+            "stessa domanda è già partita da poco non manda niente, e te lo dice."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "argomento": {"type": "string", "enum": list(ARGOMENTI_CONFERMA),
+                              "description": "pasto, visita, appuntamento oppure altro."},
+                "domanda": {"type": "string",
+                            "description": "Per i figli, in una frase: cosa dice lei e cosa vuoi sapere."},
+            },
+            "required": ["argomento", "domanda"],
             "additionalProperties": False,
         },
     },
@@ -73,6 +100,30 @@ def avvisa_famiglia(motivo: str) -> str:
     return "Avviso NON partito (Telegram non raggiungibile o nessun familiare configurato). Non dirle che hai avvisato."
 
 
+def chiedi_conferma_famiglia(argomento: str, domanda: str, adesso: datetime | None = None) -> str:
+    adesso = adesso or datetime.now()
+    if adesso.hour >= NOTTE_DALLE or adesso.hour < NOTTE_ALLE:
+        return ("Domanda NON mandata: è notte e i figli dormono. Non dirle che l'hai chiesto: ricordale con "
+                "dolcezza che è notte e che adesso si riposa.")
+    try:
+        fatte = json.loads(CONFERME.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        fatte = {}
+    ultima = fatte.get(argomento)
+    if ultima and adesso - datetime.fromisoformat(ultima) < PAUSA_CONFERME:
+        return (f"Domanda già fatta ai figli alle {ultima[11:16]}: non rimandarla. Puoi dirle che l'hai già "
+                "chiesto ai suoi figli e che le farai sapere.")
+    partiti = avvisi.invia(f"❓ Nina, ore {adesso:%H:%M}: {domanda}\n"
+                           f"Rispondete qui: Nina dirà a {NOME_NONNA} quello che scrivete.")
+    if not partiti:
+        return "Domanda NON partita (Telegram non raggiungibile). Non dirle che l'hai chiesto ai figli."
+    fatte[argomento] = adesso.isoformat(timespec="seconds")
+    DATI.mkdir(exist_ok=True)
+    CONFERME.write_text(json.dumps(fatte), encoding="utf-8")
+    return ("Domanda mandata ai figli: quando rispondono, la radio le porterà la risposta. Dille con parole "
+            "semplici che lo chiedi ai suoi figli. Non dire che qualcuno viene o non viene.")
+
+
 def messaggio_per_la_famiglia(messaggio: str) -> str:
     DATI.mkdir(exist_ok=True)
     with (DATI / "messaggi_per_il_mattino.jsonl").open("a", encoding="utf-8") as f:
@@ -96,6 +147,7 @@ def segna_pillola(esito: str) -> str:
 _FUNZIONI = {
     "segna_pillola": segna_pillola,
     "avvisa_famiglia": avvisa_famiglia,
+    "chiedi_conferma_famiglia": chiedi_conferma_famiglia,
     "messaggio_per_la_famiglia": messaggio_per_la_famiglia,
     "metti_canzone": metti_canzone,
 }
