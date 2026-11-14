@@ -1,17 +1,22 @@
 """Ascolto: la radio si accorge da sola quando qualcuno parla.
 
 Il rilevamento della voce (webrtcvad) gira tutto sul Raspberry: in cloud va solo
-la frase già ritagliata. Il microfono resta chiuso mentre Nina parla o suona
-(half-duplex), così Nina non risponde a se stessa.
+la frase già ritagliata. Un suono conta come voce solo se webrtcvad lo riconosce
+E supera di MARGINE_DB il rumore di fondo, che la radio misura da sola.
+Il microfono resta chiuso mentre Nina parla o suona (half-duplex).
+
+    NINA_DEBUG_AUDIO=1 python ascolto.py     prova: stampa livelli e frasi ritagliate
 """
+import array
 import collections
+import math
 import subprocess
 import time
 from typing import BinaryIO, Optional
 
 import webrtcvad
 
-from config import MICROFONO, VAD_AGGRESSIVITA
+from config import DEBUG_AUDIO, MARGINE_DB, MICROFONO, VAD_AGGRESSIVITA
 
 FREQUENZA = 16000
 MS_FRAME = 30
@@ -24,6 +29,23 @@ SOGLIA_FINE = 0.9        # ...quasi tutti di silenzio chiudono la frase
 DURATA_MASSIMA_S = 20
 VOCE_MINIMA_S = 0.4      # sotto questa soglia è un rumore, non una frase
 
+# Livelli degli ultimi ~3 secondi di attesa: il rumore di fondo è il loro 20° percentile.
+# Restano tra una frase e l'altra, così la misura non riparte da zero.
+_livelli: collections.deque = collections.deque(maxlen=100)
+
+
+def livello_db(frame: bytes) -> float:
+    campioni = array.array("h", frame)
+    rms = math.sqrt(sum(c * c for c in campioni) / len(campioni)) or 1.0
+    return 20 * math.log10(rms / 32768)
+
+
+def rumore_di_fondo() -> Optional[float]:
+    if len(_livelli) < 10:
+        return None
+    ordinati = sorted(_livelli)
+    return ordinati[len(ordinati) // 5]
+
 
 def ritaglia_frase(flusso: BinaryIO, vad: webrtcvad.Vad, timeout: Optional[float] = None) -> Optional[bytes]:
     """Legge audio PCM 16 kHz mono dal flusso e restituisce la prima frase completa.
@@ -34,7 +56,9 @@ def ritaglia_frase(flusso: BinaryIO, vad: webrtcvad.Vad, timeout: Optional[float
     coda: collections.deque = collections.deque(maxlen=FRAME_FINE)
     frase: Optional[bytearray] = None
     frame_voce = 0
+    fondo_frase = 0.0
     inizio_attesa = time.monotonic()
+    contatore = 0
 
     while True:
         frame = flusso.read(BYTE_FRAME)
@@ -43,20 +67,29 @@ def ritaglia_frase(flusso: BinaryIO, vad: webrtcvad.Vad, timeout: Optional[float
             if frase is not None and frame_voce * MS_FRAME / 1000 >= VOCE_MINIMA_S:
                 return bytes(frase)
             return None
-        voce = vad.is_speech(frame, FREQUENZA)
+        db = livello_db(frame)
 
         if frase is None:
+            fondo = rumore_di_fondo()
+            _livelli.append(db)
+            voce = fondo is not None and db > fondo + MARGINE_DB and vad.is_speech(frame, FREQUENZA)
             finestra.append((frame, voce))
+            contatore += 1
+            if DEBUG_AUDIO and contatore % 16 == 0:
+                print(f"  livello {db:6.1f} dBFS   fondo {fondo if fondo is not None else float('nan'):6.1f}   "
+                      f"voce {sum(v for _, v in finestra)}/{len(finestra)}")
             voci = sum(v for _, v in finestra)
             if len(finestra) == FRAME_INIZIO and voci >= SOGLIA_INIZIO * FRAME_INIZIO:
-                # inizia la frase, compresi i 300 ms appena prima
+                # inizia la frase, compresi i 300 ms appena prima; il fondo resta fermo fino alla fine
                 frase = bytearray(b"".join(f for f, _ in finestra))
                 frame_voce = voci
+                fondo_frase = fondo
                 coda.clear()
             elif timeout is not None and time.monotonic() - inizio_attesa > timeout:
                 return None
             continue
 
+        voce = db > fondo_frase + MARGINE_DB and vad.is_speech(frame, FREQUENZA)
         frase.extend(frame)
         frame_voce += voce
         coda.append(voce)
@@ -86,3 +119,14 @@ def ascolta_frase(timeout: Optional[float] = None) -> Optional[bytes]:
     finally:
         proc.terminate()
         proc.wait()
+
+
+if __name__ == "__main__":
+    print(f"Parla: stampo le frasi che ritaglio (margine {MARGINE_DB} dB, Ctrl+C per uscire)")
+    try:
+        while True:
+            pcm = ascolta_frase()
+            if pcm:
+                print(f"✂️  frase di {len(pcm) / (FREQUENZA * 2):.1f} s   (fondo {rumore_di_fondo():.1f} dBFS)")
+    except KeyboardInterrupt:
+        pass

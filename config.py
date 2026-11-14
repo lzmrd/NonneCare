@@ -44,6 +44,8 @@ VELOCITA_VOCE = float(_leggi("NINA_VELOCITA_VOCE", "0.9"))
 MICROFONO = _leggi("NINA_MICROFONO", "plughw:CARD=Camera,DEV=0")
 ALTOPARLANTE = _leggi("NINA_ALTOPARLANTE", "plughw:CARD=Headphones,DEV=0")
 VAD_AGGRESSIVITA = int(_leggi("NINA_VAD", "2"))  # 0 = sente tutto, 3 = solo voce chiara
+MARGINE_DB = float(_leggi("NINA_MARGINE_DB", "6"))  # quanto la voce deve superare il rumore di fondo
+DEBUG_AUDIO = _leggi("NINA_DEBUG_AUDIO") == "1"
 
 # Persona
 NOME_NONNA = _leggi("NINA_NOME_NONNA", "Rosa")
