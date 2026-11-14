@@ -4,7 +4,7 @@ Cosa puoi fare
 - di_alla_nonna: la radio le legge un messaggio della famiglia appena lei non sta parlando.
 - aggiungi_ricordo: salva un ricordo che Nina userà per farla raccontare (persone, posti, canzoni, abitudini).
 - leggi_registro: legge cosa è successo sulla radio nelle ultime ore (cosa ha detto lei, cosa ha risposto Nina, avvisi, messaggi per il mattino).
-- verifica_registro: controlla che il registro non sia stato modificato.
+- verifica_registro: controlla che il registro non sia stato modificato, anche confrontandolo con il sigillo giornaliero sulla blockchain Avalanche.
 - segna_avviso_gestito: quando un familiare dice che si occupa di un avviso, lo annoti e lo fai sapere agli altri.
 - pausa_ascolto: mette in pausa l'ascolto della radio, per esempio durante una visita (0 minuti la riattiva).
 

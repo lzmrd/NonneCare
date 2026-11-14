@@ -47,5 +47,10 @@ VAD_AGGRESSIVITA = int(_leggi("NINA_VAD", "2"))  # 0 = sente tutto, 3 = solo voc
 MARGINE_DB = float(_leggi("NINA_MARGINE_DB", "6"))  # quanto la voce deve superare il rumore di fondo
 DEBUG_AUDIO = _leggi("NINA_DEBUG_AUDIO") == "1"
 
+# Scatola nera su Avalanche (rete di prova Fuji)
+SIGILLO_CHIAVE = _leggi("SIGILLO_CHIAVE")  # chiave del portafoglio della radio: solo nel .env
+RPC_AVALANCHE = _leggi("NINA_RPC_AVALANCHE", "https://api.avax-test.network/ext/bc/C/rpc")
+ESPLORATORE_TX = _leggi("NINA_ESPLORATORE_TX", "https://testnet.snowtrace.io/tx/")
+
 # Persona
 NOME_NONNA = _leggi("NINA_NOME_NONNA", "Rosa")

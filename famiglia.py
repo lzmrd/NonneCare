@@ -2,8 +2,8 @@
 
     python famiglia.py
 
-Comandi: /resoconto (com'è andata la notte), /verifica (integrità del registro).
-Ogni mattina alle 7 manda il resoconto della notte a tutta la famiglia.
+Comandi: /resoconto (com'è andata la notte), /verifica (registro e sigillo), /sigilla (sigilla adesso).
+Ogni mattina alle 7 manda il resoconto della notte a tutta la famiglia e sigilla il registro su Avalanche.
 """
 import asyncio
 import json
@@ -17,6 +17,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 import avvisi
 import bacheca
 import registro
+import sigillo
 from config import CARTELLA, DATI, MODELLO, NOME_NONNA, TELEGRAM_TOKEN
 
 ORA_RESOCONTO = 7
@@ -131,7 +132,7 @@ def leggi_registro(ore: int) -> str:
 
 
 def verifica_registro() -> str:
-    return registro.verifica()[1]
+    return sigillo.verifica_completa()[1]
 
 
 def segna_avviso_gestito(chi: str, nota: str) -> str:
@@ -216,7 +217,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(
             f"Ciao! Sono il collegamento con la radio di {NOME_NONNA}. Scrivimi un messaggio da farle sentire, "
             "un ricordo da insegnare a Nina, o chiedimi com'è andata la notte.\n"
-            "/resoconto: com'è andata la notte\n/verifica: controlla che il registro sia integro")
+            "/resoconto: com'è andata la notte\n/verifica: controlla registro e sigillo sulla blockchain\n"
+            "/sigilla: sigilla adesso il registro su Avalanche")
 
 
 async def messaggio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -243,8 +245,23 @@ async def resoconto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def verifica(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if await _solo_famiglia(update):
-        integro, spiegazione = registro.verifica()
+        await update.effective_chat.send_action("typing")
+        integro, spiegazione = await asyncio.to_thread(sigillo.verifica_completa)
         await update.message.reply_text(("✅ " if integro else "❌ ") + spiegazione)
+
+
+async def sigilla(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if await _solo_famiglia(update):
+        await update.effective_chat.send_action("typing")
+        await update.message.reply_text(await asyncio.to_thread(_sigilla_e_racconta))
+
+
+def _sigilla_e_racconta() -> str:
+    try:
+        s = sigillo.sigilla()
+        return f"🔒 Registro sigillato su Avalanche ({s['righe']} righe): {sigillo.link(s['tx'])}"
+    except Exception as errore:
+        return f"Sigillo non riuscito: {errore}"
 
 
 async def _resoconto_del_mattino(app: Application) -> None:
@@ -256,11 +273,12 @@ async def _resoconto_del_mattino(app: Application) -> None:
         await asyncio.sleep((prossimo - adesso).total_seconds())
         try:
             testo = await chiedi_all_agente([{"role": "user", "content": RICHIESTA_RESOCONTO}])
+            registro.annota("resoconto", testo=testo)
+            esito_sigillo = await asyncio.to_thread(_sigilla_e_racconta)  # sigilla anche il resoconto
             for chat in avvisi.chat_famiglia():
-                await app.bot.send_message(chat, f"☀️ Buongiorno. La notte di {NOME_NONNA}:\n\n{testo}")
+                await app.bot.send_message(chat, f"☀️ Buongiorno. La notte di {NOME_NONNA}:\n\n{testo}\n\n{esito_sigillo}")
             if MESSAGGI_MATTINO.exists():  # consegnati: li archivio
                 MESSAGGI_MATTINO.rename(DATI / f"messaggi_consegnati_{adesso:%Y%m%d}.jsonl")
-            registro.annota("resoconto", testo=testo)
         except Exception as errore:
             print(f"Resoconto del mattino non riuscito: {errore}")
 
@@ -276,6 +294,7 @@ def main() -> None:
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("resoconto", resoconto))
     app.add_handler(CommandHandler("verifica", verifica))
+    app.add_handler(CommandHandler("sigilla", sigilla))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, messaggio))
     print("Bot della famiglia attivo (Ctrl+C per uscire)")
     app.run_polling()
