@@ -16,7 +16,7 @@ def _elevenlabs() -> ElevenLabs:
     if _client is None:
         if not ELEVENLABS_API_KEY:
             raise RuntimeError("Manca ELEVENLABS_API_KEY nel file .env")
-        _client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+        _client = ElevenLabs(api_key=ELEVENLABS_API_KEY, timeout=20)
     return _client
 
 

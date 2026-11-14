@@ -49,6 +49,7 @@ def modo_radio(eco: bool) -> None:
         if pcm is None:
             continue
         inizio = time.monotonic()
+        print(f"✂️  frase di {len(pcm) / 32000:.1f} s, trascrivo…")
         try:
             detto = trascrivi(pcm)
             if len(detto) < 2:
