@@ -9,9 +9,10 @@ import subprocess
 import sys
 import time
 
+import bacheca
 import registro
 import strumenti
-from config import ALTOPARLANTE, DATI
+from config import ALTOPARLANTE, DATI, NOME_NONNA
 
 
 def suona_canzone() -> None:
@@ -26,6 +27,20 @@ def esegui_azioni() -> None:
     while strumenti.azioni_in_sospeso:
         if strumenti.azioni_in_sospeso.pop(0) == "canzone":
             suona_canzone()
+
+
+def leggi_annunci(nina, parla) -> None:
+    for annuncio in bacheca.prendi_annunci():
+        testo = f"{NOME_NONNA}, sono Nina. Ti porto un messaggio di {annuncio['da']}: {annuncio['testo']}"
+        print(f"📨 {testo}")
+        try:
+            parla(testo)
+            registro.annota("annuncio", da=annuncio["da"], testo=annuncio["testo"])
+            nina.ricorda_annuncio(annuncio["testo"])
+        except Exception as errore:
+            print(f"⚠️  annuncio non letto: {errore}")
+            bacheca.aggiungi_annuncio(annuncio["testo"], annuncio["da"])  # riprovo al giro dopo
+            time.sleep(5)
 
 
 def modo_testo() -> None:
@@ -45,7 +60,12 @@ def modo_radio(eco: bool) -> None:
     nina = None if eco else __import__("nina").Nina()
     print("Nina ascolta… (Ctrl+C per uscire)")
     while True:
-        pcm = ascolta_frase()
+        if bacheca.in_pausa():
+            time.sleep(5)
+            continue
+        if not eco:
+            leggi_annunci(nina, parla)
+        pcm = ascolta_frase(timeout=5)  # ogni 5 secondi di silenzio controlla gli annunci
         if pcm is None:
             continue
         inizio = time.monotonic()

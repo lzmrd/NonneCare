@@ -38,6 +38,10 @@ class Nina:
         self.messaggi: list = []
         self.sistema = _prompt()
         self.ultimo_scambio = 0.0
+        self.annunci_recenti: list[tuple[float, str]] = []  # messaggi della famiglia appena letti alla nonna
+
+    def ricorda_annuncio(self, testo: str) -> None:
+        self.annunci_recenti.append((time.monotonic(), testo))
 
     def _nuova_conversazione(self) -> None:
         # Si riparte da zero invece di accorciare la storia: niente modifiche ai turni già inviati
@@ -49,7 +53,10 @@ class Nina:
             self._nuova_conversazione()
         self.ultimo_scambio = time.monotonic()
         registro.annota("nonna", testo=detto)
-        self.messaggi.append({"role": "user", "content": f"[{_momento()}] {detto}"})
+        contesto = "".join(f"(Poco fa la radio le ha letto questo messaggio della famiglia: \"{t}\") "
+                           for quando, t in self.annunci_recenti if time.monotonic() - quando < 30 * 60)
+        self.annunci_recenti.clear()
+        self.messaggi.append({"role": "user", "content": f"[{_momento()}] {contesto}{detto}"})
 
         risposta = None
         for _ in range(GIRI_MASSIMI):
