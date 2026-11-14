@@ -26,7 +26,11 @@ PAUSA_NUOVA_CONVERSAZIONE_S = 30 * 60
 MESSAGGI_MATTINO = DATI / "messaggi_per_il_mattino.jsonl"
 RICHIESTA_RESOCONTO = ("[resoconto automatico] Scrivi il resoconto per la famiglia delle ultime 12 ore della radio: "
                        "risvegli con orari, cosa chiedeva, come si è calmata, avvisi e chi li ha gestiti, "
-                       "messaggi che ha lasciato per i figli. Massimo 12 righe.")
+                       "messaggi che ha lasciato per i figli. Massimo 12 righe. Chiudi con un consiglio "
+                       "pratico, uno solo, legato a quello che è successo, preso dai consigli delle associazioni.")
+RICHIESTA_CONSIGLIO = ("[consiglio] Dai alla famiglia un consiglio pratico su come stare vicino a lei, legato a "
+                       "quello che è successo nelle ultime 24 ore (usa leggi_registro); se non è successo niente "
+                       "di particolare, scegline uno utile. Massimo 5 righe, e di' da quale associazione viene.")
 
 DEFINIZIONI = [
     {
@@ -195,7 +199,8 @@ _storie: dict[str, tuple[list, float]] = {}
 
 
 def _sistema() -> str:
-    return (CARTELLA / "prompt_famiglia.md").read_text(encoding="utf-8").replace("{nome}", NOME_NONNA)
+    prompt = (CARTELLA / "prompt_famiglia.md").read_text(encoding="utf-8").replace("{nome}", NOME_NONNA)
+    return prompt + "\n\n" + (CARTELLA / "consigli_famiglia.md").read_text(encoding="utf-8")
 
 
 async def chiedi_all_agente(messaggi: list) -> str:
@@ -253,7 +258,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"Ciao! Sono il collegamento con la radio di {NOME_NONNA}. Scrivimi un messaggio da farle sentire, "
             "un ricordo da insegnare a Nina, o chiedimi com'è andata la notte.\n"
             "/resoconto: com'è andata la notte\n/verifica: controlla registro e sigillo sulla blockchain\n"
-            "/sigilla: sigilla adesso il registro su Avalanche\n/pillola: Nina le ricorda la pillola adesso")
+            "/sigilla: sigilla adesso il registro su Avalanche\n/pillola: Nina le ricorda la pillola adesso\n"
+            "/consigli: un consiglio pratico su come starle vicino")
 
 
 async def messaggio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -276,6 +282,12 @@ async def resoconto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if await _solo_famiglia(update):
         await update.effective_chat.send_action("typing")
         await update.message.reply_text(await chiedi_all_agente([{"role": "user", "content": RICHIESTA_RESOCONTO}]))
+
+
+async def consigli(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if await _solo_famiglia(update):
+        await update.effective_chat.send_action("typing")
+        await update.message.reply_text(await chiedi_all_agente([{"role": "user", "content": RICHIESTA_CONSIGLIO}]))
 
 
 async def verifica(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -335,6 +347,7 @@ def main() -> None:
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(_all_avvio).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("resoconto", resoconto))
+    app.add_handler(CommandHandler("consigli", consigli))
     app.add_handler(CommandHandler("verifica", verifica))
     app.add_handler(CommandHandler("sigilla", sigilla))
     app.add_handler(CommandHandler("pillola", pillola_adesso))
