@@ -62,8 +62,13 @@ def modo_testo() -> None:
 
 def modo_radio(eco: bool) -> None:
     from ascolto import ascolta_frase
-    from voce import parla, trascrivi
+    from voce import parla, parla_di_riserva, prepara_riserva, trascrivi
     nina = None if eco else __import__("nina").Nina()
+    ultima_canzone_di_riserva = 0.0
+    try:
+        prepara_riserva()
+    except Exception as errore:
+        print(f"⚠️  frase di riserva non preparata: {errore}")
     print("Nina ascolta… (Ctrl+C per uscire)")
     if os.environ.get("NINA_ANNUNCIA_AVVIO") == "1":  # utile senza schermo: si sente quando è pronta
         try:
@@ -102,6 +107,13 @@ def modo_radio(eco: bool) -> None:
         except Exception as errore:  # di notte la radio non deve spegnersi per un errore di rete
             print(f"⚠️  {type(errore).__name__}: {errore}")
             registro.annota("errore", tipo=type(errore).__name__, dettaglio=str(errore)[:300])
+            # senza rete: frase preparata in anticipo e, al massimo ogni 10 minuti, la sua canzone
+            try:
+                if parla_di_riserva() and time.monotonic() - ultima_canzone_di_riserva > 600:
+                    ultima_canzone_di_riserva = time.monotonic()
+                    suona_canzone()
+            except Exception as altro:
+                print(f"⚠️  anche la riserva non è riuscita: {altro}")
             time.sleep(2)
 
 
