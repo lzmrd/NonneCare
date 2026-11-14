@@ -39,6 +39,7 @@ NINA_NOME_NONNA=...
 # NINA_ALTOPARLANTE=cassa
 # NINA_OPZIONI_APLAY=-B 2000000 -R 500000
 # NINA_FREQUENZA_CASSA=44100
+# NINA_VOCE_INTERA=1
 ```
 
 I ricordi veri vanno in `dati/ricordi.md` e le canzoni in `dati/musica/`: restano sul Raspberry. `ricordi.esempio.md` mostra il formato con nomi inventati.

@@ -6,7 +6,7 @@ from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
 
 from config import (ALTOPARLANTE, DATI, ELEVENLABS_API_KEY, FREQUENZA_CASSA, MODELLO_TRASCRIZIONE,
-                    MODELLO_VOCE, NOME_NONNA, OPZIONI_APLAY, VELOCITA_VOCE, VOCE_ID)
+                    MODELLO_VOCE, NOME_NONNA, OPZIONI_APLAY, VELOCITA_VOCE, VOCE_ID, VOCE_INTERA)
 
 with warnings.catch_warnings():  # audioop c'è fino a Python 3.12 (sul Raspberry c'è la 3.11)
     warnings.simplefilter("ignore", DeprecationWarning)
@@ -38,8 +38,11 @@ def trascrivi(pcm: bytes) -> str:
 
 
 def parla(testo: str) -> None:
-    """Legge il testo ad alta voce, iniziando a suonare mentre l'audio arriva."""
-    suona(_sintetizza(testo), FREQUENZA_VOCE)
+    """Legge il testo ad alta voce, iniziando a suonare mentre l'audio arriva (o dopo, con NINA_VOCE_INTERA=1)."""
+    pezzi = _sintetizza(testo)
+    if VOCE_INTERA:
+        pezzi = [b"".join(p for p in pezzi if p)]
+    suona(pezzi, FREQUENZA_VOCE)
 
 
 def _sintetizza(testo: str):

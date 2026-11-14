@@ -50,6 +50,9 @@ OPZIONI_APLAY = shlex.split(_leggi("NINA_OPZIONI_APLAY"))
 # Per la cassa Bluetooth: 44100. L'audio viene convertito qui in stereo a quella frequenza,
 # perché la conversione di ALSA verso il Bluetooth fa saltare il suono. 0 = nessuna conversione.
 FREQUENZA_CASSA = int(_leggi("NINA_FREQUENZA_CASSA", "0"))
+# 1 = scarica tutta la frase prima di suonarla: parte un attimo dopo, ma se la rete rallenta
+# la cassa Bluetooth non resta senza audio a metà frase
+VOCE_INTERA = _leggi("NINA_VOCE_INTERA") == "1"
 VAD_AGGRESSIVITA = int(_leggi("NINA_VAD", "2"))  # 0 = sente tutto, 3 = solo voce chiara
 MARGINE_DB = float(_leggi("NINA_MARGINE_DB", "6"))  # quanto la voce deve superare il rumore di fondo
 DEBUG_AUDIO = _leggi("NINA_DEBUG_AUDIO") == "1"
