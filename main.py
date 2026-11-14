@@ -18,18 +18,19 @@ from config import DATI, NOME_NONNA
 
 
 def suona_canzone() -> None:
-    from voce import lettore_audio
+    from voce import suona
     canzoni = sorted((DATI / "musica").glob("*.mp3"))
     if canzoni:
         canzone = canzoni[int(time.time()) % len(canzoni)]
         registro.annota("canzone", file=canzone.name)
-        # mpg123 decodifica, aplay suona con le stesse opzioni della voce
+        # mpg123 decodifica in mono a 44100 Hz, poi suona come la voce (stesse opzioni e conversione)
         decodifica = subprocess.Popen(["mpg123", "-q", "-s", "-m", "-r", "44100", "-e", "s16", str(canzone)],
                                       stdout=subprocess.PIPE)
-        lettore = subprocess.Popen(lettore_audio(44100), stdin=decodifica.stdout)
-        decodifica.stdout.close()  # se aplay si chiude, mpg123 si ferma invece di restare appeso
-        lettore.wait()
-        decodifica.wait()
+        try:
+            suona(iter(lambda: decodifica.stdout.read(8192), b""), 44100)
+        finally:
+            decodifica.stdout.close()  # se aplay si chiude, mpg123 si ferma invece di restare appeso
+            decodifica.wait()
 
 
 def esegui_azioni() -> None:

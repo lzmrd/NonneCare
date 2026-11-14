@@ -1,11 +1,16 @@
 """Voce di Nina: trascrizione di quello che sente e sintesi di quello che dice (ElevenLabs)."""
 import subprocess
+import warnings
 
 from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
 
-from config import (ALTOPARLANTE, DATI, ELEVENLABS_API_KEY, MODELLO_TRASCRIZIONE, MODELLO_VOCE,
-                    NOME_NONNA, OPZIONI_APLAY, VELOCITA_VOCE, VOCE_ID, VOCE_INTERA)
+from config import (ALTOPARLANTE, DATI, ELEVENLABS_API_KEY, FREQUENZA_CASSA, MODELLO_TRASCRIZIONE,
+                    MODELLO_VOCE, NOME_NONNA, OPZIONI_APLAY, VELOCITA_VOCE, VOCE_ID)
+
+with warnings.catch_warnings():  # audioop c'è fino a Python 3.12 (sul Raspberry c'è la 3.11)
+    warnings.simplefilter("ignore", DeprecationWarning)
+    import audioop
 
 FREQUENZA_VOCE = 22050
 _client = None
@@ -33,15 +38,8 @@ def trascrivi(pcm: bytes) -> str:
 
 
 def parla(testo: str) -> None:
-    """Legge il testo ad alta voce, iniziando a suonare mentre l'audio arriva.
-
-    Con NINA_VOCE_INTERA=1 prima scarica tutta la frase: con il Bluetooth un pezzo in ritardo
-    lascerebbe la cassa senza audio, e il Wi-Fi che scarica disturba la trasmissione.
-    """
-    pezzi = _sintetizza(testo)
-    if VOCE_INTERA:
-        pezzi = [b"".join(p for p in pezzi if p)]
-    _suona(pezzi)
+    """Legge il testo ad alta voce, iniziando a suonare mentre l'audio arriva."""
+    suona(_sintetizza(testo), FREQUENZA_VOCE)
 
 
 def _sintetizza(testo: str):
@@ -59,21 +57,40 @@ def _sintetizza(testo: str):
     return audio
 
 
-def lettore_audio(frequenza: int) -> list[str]:
-    """aplay che suona audio grezzo mono da stdin, con le opzioni del .env (per esempio per il Bluetooth)."""
-    return ["aplay", "-q", "-D", ALTOPARLANTE, *OPZIONI_APLAY,
-            "-f", "S16_LE", "-r", str(frequenza), "-c", "1", "-t", "raw"]
-
-
-def _suona(pezzi) -> None:
-    lettore = subprocess.Popen(lettore_audio(FREQUENZA_VOCE), stdin=subprocess.PIPE)
+def suona(pezzi, frequenza: int) -> None:
+    """Suona audio grezzo mono a 16 bit, a pezzi, con le opzioni del .env (per esempio per il Bluetooth)."""
+    canali = 1
+    if FREQUENZA_CASSA:
+        pezzi, frequenza, canali = _nel_formato_della_cassa(pezzi, frequenza), FREQUENZA_CASSA, 2
+    lettore = subprocess.Popen(
+        ["aplay", "-q", "-D", ALTOPARLANTE, *OPZIONI_APLAY,
+         "-f", "S16_LE", "-r", str(frequenza), "-c", str(canali), "-t", "raw"],
+        stdin=subprocess.PIPE,
+    )
     try:
         for pezzo in pezzi:
             if pezzo:
                 lettore.stdin.write(pezzo)
     finally:
-        lettore.stdin.close()
+        try:
+            lettore.stdin.close()
+        except BrokenPipeError:  # aplay già chiuso: l'errore vero è già partito dal write
+            pass
         lettore.wait()
+
+
+def _nel_formato_della_cassa(pezzi, frequenza: int):
+    """Da mono a `frequenza` a stereo a FREQUENZA_CASSA, un pezzo alla volta."""
+    stato, resto = None, b""
+    for pezzo in pezzi:
+        pezzo = resto + (pezzo or b"")
+        intero = len(pezzo) - len(pezzo) % 2  # dalla rete può arrivare mezzo campione
+        pezzo, resto = pezzo[:intero], pezzo[intero:]
+        if not pezzo:
+            continue
+        if frequenza != FREQUENZA_CASSA:
+            pezzo, stato = audioop.ratecv(pezzo, 2, 1, frequenza, FREQUENZA_CASSA, stato)
+        yield audioop.tostereo(pezzo, 2, 1, 1)
 
 
 # --- Frase di riserva, per quando manca internet -------------------------------------------
@@ -93,5 +110,5 @@ def parla_di_riserva() -> bool:
     """Suona la frase di riserva senza rete. Restituisce False se non è mai stata preparata."""
     if not _RISERVA.exists():
         return False
-    _suona([_RISERVA.read_bytes()])
+    suona([_RISERVA.read_bytes()], FREQUENZA_VOCE)
     return True
