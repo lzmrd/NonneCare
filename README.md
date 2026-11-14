@@ -38,6 +38,7 @@ NINA_NOME_NONNA=...
 # solo con una cassa Bluetooth (dispositivo "cassa" definito in ~/.asoundrc con bluez-alsa):
 # NINA_ALTOPARLANTE=cassa
 # NINA_OPZIONI_APLAY=-B 2000000 -R 500000
+# NINA_VOCE_INTERA=1
 ```
 
 I ricordi veri vanno in `dati/ricordi.md` e le canzoni in `dati/musica/`: restano sul Raspberry. `ricordi.esempio.md` mostra il formato con nomi inventati.

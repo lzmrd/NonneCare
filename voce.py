@@ -5,7 +5,7 @@ from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
 
 from config import (ALTOPARLANTE, DATI, ELEVENLABS_API_KEY, MODELLO_TRASCRIZIONE, MODELLO_VOCE,
-                    NOME_NONNA, OPZIONI_APLAY, VELOCITA_VOCE, VOCE_ID)
+                    NOME_NONNA, OPZIONI_APLAY, VELOCITA_VOCE, VOCE_ID, VOCE_INTERA)
 
 FREQUENZA_VOCE = 22050
 _client = None
@@ -33,8 +33,15 @@ def trascrivi(pcm: bytes) -> str:
 
 
 def parla(testo: str) -> None:
-    """Legge il testo ad alta voce, iniziando a suonare mentre l'audio arriva."""
-    _suona(_sintetizza(testo))
+    """Legge il testo ad alta voce, iniziando a suonare mentre l'audio arriva.
+
+    Con NINA_VOCE_INTERA=1 prima scarica tutta la frase: con il Bluetooth un pezzo in ritardo
+    lascerebbe la cassa senza audio, e il Wi-Fi che scarica disturba la trasmissione.
+    """
+    pezzi = _sintetizza(testo)
+    if VOCE_INTERA:
+        pezzi = [b"".join(p for p in pezzi if p)]
+    _suona(pezzi)
 
 
 def _sintetizza(testo: str):

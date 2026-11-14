@@ -47,6 +47,8 @@ ALTOPARLANTE = _leggi("NINA_ALTOPARLANTE", "plughw:CARD=Headphones,DEV=0")
 # Opzioni in più per aplay. Per una cassa Bluetooth: "-B 2000000 -R 500000"
 # (2 secondi di riserva contro i salti, comincia a suonare dopo mezzo secondo)
 OPZIONI_APLAY = shlex.split(_leggi("NINA_OPZIONI_APLAY"))
+# 1 = scarica tutta la frase prima di suonarla: parte un attimo dopo ma non salta (cassa Bluetooth)
+VOCE_INTERA = _leggi("NINA_VOCE_INTERA") == "1"
 VAD_AGGRESSIVITA = int(_leggi("NINA_VAD", "2"))  # 0 = sente tutto, 3 = solo voce chiara
 MARGINE_DB = float(_leggi("NINA_MARGINE_DB", "6"))  # quanto la voce deve superare il rumore di fondo
 DEBUG_AUDIO = _leggi("NINA_DEBUG_AUDIO") == "1"
