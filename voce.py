@@ -1,5 +1,6 @@
 """Voce di Nina: trascrizione di quello che sente e sintesi di quello che dice (ElevenLabs)."""
 import subprocess
+import time
 import warnings
 
 from elevenlabs import VoiceSettings
@@ -14,6 +15,7 @@ with warnings.catch_warnings():  # audioop c'è fino a Python 3.12 (sul Raspberr
 
 FREQUENZA_VOCE = 22050
 _client = None
+primo_suono = 0.0  # quando è partito il primo pezzo dell'ultima frase suonata (per misurare la latenza)
 
 
 def _elevenlabs() -> ElevenLabs:
@@ -62,6 +64,8 @@ def _sintetizza(testo: str):
 
 def suona(pezzi, frequenza: int) -> None:
     """Suona audio grezzo mono a 16 bit, a pezzi, con le opzioni del .env (per esempio per il Bluetooth)."""
+    global primo_suono
+    primo_suono = 0.0
     canali = 1
     if FREQUENZA_CASSA:
         pezzi, frequenza, canali = _nel_formato_della_cassa(pezzi, frequenza), FREQUENZA_CASSA, 2
@@ -73,6 +77,7 @@ def suona(pezzi, frequenza: int) -> None:
     try:
         for pezzo in pezzi:
             if pezzo:
+                primo_suono = primo_suono or time.monotonic()
                 lettore.stdin.write(pezzo)
     finally:
         try:

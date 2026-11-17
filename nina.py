@@ -68,7 +68,9 @@ class Nina:
         self.messaggi.append({"role": "user", "content": contenuto})
 
         risposta = None
+        tempi = []  # misura della latenza: ogni chiamata a Claude e ogni strumento
         for _ in range(GIRI_MASSIMI):
+            inizio = time.monotonic()
             risposta = self.client.messages.create(
                 model=MODELLO,
                 max_tokens=2000,
@@ -78,6 +80,9 @@ class Nina:
                 output_config={"effort": "low"},
                 cache_control={"type": "ephemeral"},
             )
+            uso = risposta.usage
+            tempi.append(f"Claude {time.monotonic() - inizio:.1f}s (token {uso.input_tokens} nuovi, "
+                         f"{getattr(uso, 'cache_read_input_tokens', 0) or 0} dalla cache, {uso.output_tokens} scritti)")
             if risposta.stop_reason == "refusal":
                 break
             self.messaggi.append({"role": "assistant", "content": risposta.content})
@@ -86,10 +91,13 @@ class Nina:
             risultati = []
             for blocco in risposta.content:
                 if blocco.type == "tool_use":
+                    inizio = time.monotonic()
                     testo, errore = strumenti.esegui(blocco.name, blocco.input)
+                    tempi.append(f"{blocco.name} {time.monotonic() - inizio:.1f}s")
                     risultati.append({"type": "tool_result", "tool_use_id": blocco.id,
                                       "content": testo, "is_error": errore})
             self.messaggi.append({"role": "user", "content": risultati})
+        print(f"⏱️  {MODELLO}: " + " + ".join(tempi))
 
         testo = " ".join(b.text for b in risposta.content if b.type == "text").strip() if risposta else ""
         if not testo or risposta.stop_reason in ("refusal", "tool_use"):

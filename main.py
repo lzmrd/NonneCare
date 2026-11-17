@@ -14,7 +14,7 @@ import bacheca
 import pillola
 import registro
 import strumenti
-from config import DATI, NOME_NONNA
+from config import DATI, MODELLO, MODELLO_TRASCRIZIONE, MODELLO_VOCE, NOME_NONNA
 
 
 def suona_canzone() -> None:
@@ -69,6 +69,7 @@ def modo_testo() -> None:
 
 
 def modo_radio(eco: bool) -> None:
+    import voce
     from ascolto import ascolta_frase
     from voce import parla, parla_di_riserva, prepara_riserva, trascrivi
     nina = None if eco else __import__("nina").Nina()
@@ -77,6 +78,7 @@ def modo_radio(eco: bool) -> None:
         prepara_riserva()
     except Exception as errore:
         print(f"⚠️  frase di riserva non preparata: {errore}")
+    print(f"Modelli: Claude {MODELLO}, voce {MODELLO_VOCE}, trascrizione {MODELLO_TRASCRIZIONE}")
     print("Nina ascolta… (Ctrl+C per uscire)")
     if os.environ.get("NINA_ANNUNCIA_AVVIO") == "1":  # utile senza schermo: si sente quando è pronta
         try:
@@ -111,6 +113,8 @@ def modo_radio(eco: bool) -> None:
             risposta = detto if eco else nina.rispondi(detto)
             print(f"📻 {risposta}   ({time.monotonic() - inizio:.1f}s prima di parlare)")
             parla(risposta)
+            if voce.primo_suono:  # in più c'è ~1 s di silenzio che serve a capire che la frase è finita
+                print(f"🔊 voce partita {voce.primo_suono - inizio:.1f}s dopo la fine della frase")
             esegui_azioni()
         except Exception as errore:  # di notte la radio non deve spegnersi per un errore di rete
             print(f"⚠️  {type(errore).__name__}: {errore}")
